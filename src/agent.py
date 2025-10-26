@@ -1,4 +1,6 @@
+
 import logging
+import datetime as dt
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -14,6 +16,17 @@ from livekit.agents import (
 )
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
+from livekit.agents import function_tool, RunContext
+from google_calendar_tool import add_event, get_upcoming_events
+from google_mail_tool import send_email
+from google_tasks_tool import (
+    list_task_lists,
+    list_tasks,
+    create_task,
+    update_task,
+    delete_task,
+)
+from datetime_tool import get_current_datetime
 # from livekit.plugins import hedra
 
 logger = logging.getLogger("agent")
@@ -23,40 +36,136 @@ load_dotenv(".env.local")
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""You are a helpful voice AI assistant called Zephyr.
-            Please always introduce yourself as Zephyr in French the first time
-            when connecting if nobody's already talking.
-            The user is interacting with you via voice,
-            even if you perceive the conversation as text.
-            You eagerly assist users with their questions by providing
-            information from your extensive knowledge.
-            Your responses are concise, to the point, and without
-            any complex formatting or punctuation including emojis,
-            asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
+            instructions="""
+You are a helpful voice AI assistant.
+You are called Zephyr.
+Speak in French by default
+The user is interacting with you via voice,
+even if you perceive the conversation as text.
+You eagerly assist users with their questions by providing
+information from your extensive knowledge.
+Your responses are concise, to the point, and without
+any complex formatting or punctuation including emojis,
+asterisks, or other symbols.
+You are curious, friendly, and have a sense of humor.
+Do not hesitate to use the appropriate tool to determine the curren date.
+""",
         )
 
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
+# SAMPLE TOOL ##################################################################
 
+    @function_tool
+    async def lookup_weather(self, context: RunContext, location: str):
+        """Use this tool to look up current weather information in the given location.
+
+        If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
+
+        Args:
+            location: The location to look up weather information for (e.g. city name)
+        """
+
+        logger.info(f"Looking up weather for {location}")
+
+        return "sunny with a temperature of 70 degrees."
+
+# DATE #########################################################################
+
+    @function_tool
+    async def get_current_datetime(self, context: RunContext):
+        """Returns the current date and time in ISO format."""
+        logger.info("Getting current date and time")
+        return get_current_datetime()
+
+# GOOGLE CALENDAR ##############################################################
+
+    @function_tool
+    async def schedule_google_calendar_event(
+        self,
+        context: RunContext,
+        summary: str,
+        description: str,
+        start_time: dt.datetime,
+        end_time: dt.datetime,
+        timezone: str = 'Europe/Paris'
+    ):
+        """Use this tool to schedule an event in Google Calendar.
+
+        Args:
+            summary: The summary or title of the event.
+            description: The description of the event.
+            start_time: The start time of the event in 'YYYY-MM-DDTHH:MM:SS' format.
+            end_time: The end time of the event in 'YYYY-MM-DDTHH:MM:SS' format.
+            timezone: The timezone for the event (default is 'Europe/Paris').
+        """
+        logger.info(f"Scheduling Google Calendar event: {summary} from {start_time} to {end_time}")
+        return add_event(summary, description, start_time, end_time)
+
+    @function_tool
+    async def get_next_scheduled_google_calendar_events(self, context: RunContext, count: int = 2):
+        """Use this tool to retrieve next events in Google Calendar.
+
+        Args:
+            count: The number of upcoming events to retrieve (default is 2).
+        """
+        logger.info(f"Listing next Google Calendar events")
+        return get_upcoming_events(count)
+
+# GOOGLE MAIL ##################################################################
+
+    @function_tool
+    async def send_google_mail(self, context: RunContext, to: str, subject: str, message: str):
+        """Use this tool to send an email using Gmail.
+
+        Args:
+            to: The recipient of the email.
+            subject: The subject of the email.
+            message: The content of the email.
+        """
+        logger.info(f"Sending email to {to} with subject {subject}")
+        return send_email(to, subject, message)
+
+# GOOGLE TASKS #################################################################
+
+    @function_tool
+    async def list_google_task_lists(self, context: RunContext):
+        """Use this tool to list the user's Google Task lists."""
+        logger.info("Listing Google Task lists")
+        return list_task_lists()
+
+    @function_tool
+    async def list_google_tasks(self, context: RunContext, task_list_id: str):
+        """Use this tool to list the tasks in a specific Google Task list."""
+        logger.info(f"Listing tasks for task list {task_list_id}")
+        return list_tasks(task_list_id)
+
+    @function_tool
+    async def create_google_task(
+        self, context: RunContext, task_list_id: str, title: str, notes: str = None
+    ):
+        """Use this tool to create a new task in a specific Google Task list."""
+        logger.info(f"Creating task '{title}' in task list {task_list_id}")
+        return create_task(task_list_id, title, notes)
+
+    @function_tool
+    async def update_google_task(
+        self, context: RunContext, task_list_id: str, task_id: str, title: str, notes: str = None
+    ):
+        """Use this tool to update a task in a specific Google Task list."""
+        logger.info(f"Updating task {task_id} in task list {task_list_id}")
+        return update_task(task_list_id, task_id, title, notes)
+
+    @function_tool
+    async def delete_google_task(self, context: RunContext, task_list_id: str, task_id: str):
+        """Use this tool to delete a task in a specific Google Task list."""
+        logger.info(f"Deleting task {task_id} from task list {task_list_id}")
+        return delete_task(task_list_id, task_id)
+
+#
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
+#
 
 async def entrypoint(ctx: JobContext):
     # Logging setup
