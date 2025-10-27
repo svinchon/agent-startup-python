@@ -1,22 +1,19 @@
-
 import datetime
 import datetime as dt
 import os.path
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-
-from google_auth import authenticate_google
+from google.oauth2.credentials import Credentials
 
 TIMEZONE = "Europe/Paris"
 
 def add_event(
+    creds: Credentials,
     summary: str,
     description: str,
     start_time: dt.datetime,
-    end_time: dt.datetime #,
-    # timezone: str = 'Europe/Paris'
-    # calendar_id: str = "primary",
+    end_time: dt.datetime
 ):
     """
     Creates a Google Calendar event.
@@ -25,29 +22,16 @@ def add_event(
     Assumes timezone is TIMEZONE.
     
     Args:
+        creds: The authenticated Google credentials.
         summary: The summary or title of the event.
         description: The description of the event.
         start_time: The start time of the event in 'YYYY-MM-DDTHH:MM:SS' format.
         end_time: The end time of the event in 'YYYY-MM-DDTHH:MM:SS' format.
-        timezone: The timezone for the event (default is 'Europe/Paris').
     """
-    print(f"""
-    Creating event with:
-    summary={summary},
-    description={description},
-    start_time={start_time},
-    end_time={end_time}
-    """
-    )
-    creds = authenticate_google()
-    if not creds:
-        return "Authentication failed. Please ensure credentials.json is set up correctly."
     try:
         service = build("calendar", "v3", credentials=creds)
         def to_rfc3339(d: dt.datetime) -> str:
             if d.tzinfo is None:
-                # on suppose que ce sont des heures locales TIMEZONE
-                # sinon, passe des datetimes tz-aware
                 from zoneinfo import ZoneInfo
                 d = d.replace(tzinfo=ZoneInfo(TIMEZONE))
             return d.isoformat()
@@ -76,54 +60,35 @@ def add_event(
     except Exception as e:
         return f"An unexpected error occurred: {e}"
 
-def get_upcoming_events(count: int):
-    """Affiche les prochains événements du calendrier de
-    l'utilisateur."""
-    creds = authenticate_google()
-    if not creds:
-        return "Authentication failed. Please ensure credentials.json is set up correctly."
+def get_upcoming_events(creds: Credentials, count: int):
+    """Gets the upcoming events from the user's calendar."""
     try:
         service = build("calendar", "v3", credentials=creds)
-        # Appelle l'API Calendar
-        now = datetime.datetime.utcnow().isoformat() + "Z" # 'Z' indique UTC
-        print("Récupération des prochains événements")
+        now = datetime.datetime.utcnow().isoformat() + "Z"  # 'Z' indicates UTC
         events_result = (
             service.events()
-               .list(
-                   calendarId="primary",
-                   timeMin=now,
-                   maxResults=10,
-                   singleEvents=True,
-                   orderBy="startTime",
-               )
-               .execute()
-           )
+            .list(
+                calendarId="primary",
+                timeMin=now,
+                maxResults=count,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
+        )
         events = events_result.get("items", [])
         if not events:
-            print("Aucun événement à venir trouvé.")
-            return
-        # Affiche les prochains événements
-        ret = "Evenements à venir:\n"
-        for event in events[0:count]:
+            return "No upcoming events found."
+        
+        ret = "Upcoming events:\n"
+        for event in events:
             start = event["start"].get("dateTime", event["start"].get("date"))
             ret += f"{start} - {event['summary']}\n"
         return ret
     except HttpError as error:
-        return(f"Une erreur s'est produite : {error}")
+        return f"An error occurred: {error}"
 
 if __name__ == "__main__":
-    # Exemple d'utilisation
-    from zoneinfo import ZoneInfo
-
-    start_dt 	= dt.datetime.now(ZoneInfo(TIMEZONE)).replace(hour=15, minute=0, second=0, microsecond=0)
-    end_dt  	= start_dt.replace(hour=16)
-
-    event = add_event(
-        summary="Réunion projet Bidon",
-        description="Point d’avancement sprint",
-        start_time=start_dt,
-        end_time=end_dt
-    )
-    print("Événement créé :", event)
-
-    print(get_upcoming_events(2))
+    # This part will not work without credentials.
+    # You would need to load credentials from a file or another source to test this directly.
+    print("To test this module directly, you need to provide Google API credentials.")

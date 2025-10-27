@@ -1,8 +1,8 @@
-
 import logging
 import datetime as dt
-
+import json
 from dotenv import load_dotenv
+from google.oauth2.credentials import Credentials
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -17,6 +17,8 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from livekit.agents import function_tool, RunContext
+
+# Import tool functions
 from google_calendar_tool import add_event, get_upcoming_events
 from google_mail_tool import send_email
 from google_tasks_tool import (
@@ -27,7 +29,9 @@ from google_tasks_tool import (
     delete_task,
 )
 from datetime_tool import get_current_datetime
-# from livekit.plugins import hedra
+
+# Import database functions
+from database import save_credentials, get_credentials
 
 logger = logging.getLogger("agent")
 
@@ -51,6 +55,18 @@ You are curious, friendly, and have a sense of humor.
 Do not hesitate to use the appropriate tool to determine the curren date.
 """,
         )
+
+# GOOGLE AUTH ##################################################################
+
+    @function_tool
+    async def update_google_creds(self, context: RunContext, creds_json: str):
+        """
+        Update the Google credentials for the user.
+        This tool must be called before any other Google tool.
+        """
+        logger.info("Updating google credentials for user %s", context.participant.identity)
+        save_credentials(context.participant.identity, creds_json)
+        return "Google credentials updated."
 
 # SAMPLE TOOL ##################################################################
 
@@ -78,6 +94,12 @@ Do not hesitate to use the appropriate tool to determine the curren date.
 
 # GOOGLE CALENDAR ##############################################################
 
+    def _get_google_creds(self, context: RunContext) -> Credentials | None:
+        creds_json = get_credentials(context.participant.identity)
+        if not creds_json:
+            return None
+        return Credentials.from_authorized_user_info(json.loads(creds_json))
+
     @function_tool
     async def schedule_google_calendar_event(
         self,
@@ -98,7 +120,10 @@ Do not hesitate to use the appropriate tool to determine the curren date.
             timezone: The timezone for the event (default is 'Europe/Paris').
         """
         logger.info(f"Scheduling Google Calendar event: {summary} from {start_time} to {end_time}")
-        return add_event(summary, description, start_time, end_time)
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return add_event(creds, summary, description, start_time, end_time)
 
     @function_tool
     async def get_next_scheduled_google_calendar_events(self, context: RunContext, count: int = 2):
@@ -108,7 +133,10 @@ Do not hesitate to use the appropriate tool to determine the curren date.
             count: The number of upcoming events to retrieve (default is 2).
         """
         logger.info(f"Listing next Google Calendar events")
-        return get_upcoming_events(count)
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return get_upcoming_events(creds, count)
 
 # GOOGLE MAIL ##################################################################
 
@@ -122,7 +150,10 @@ Do not hesitate to use the appropriate tool to determine the curren date.
             message: The content of the email.
         """
         logger.info(f"Sending email to {to} with subject {subject}")
-        return send_email(to, subject, message)
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return send_email(creds, to, subject, message)
 
 # GOOGLE TASKS #################################################################
 
@@ -130,13 +161,19 @@ Do not hesitate to use the appropriate tool to determine the curren date.
     async def list_google_task_lists(self, context: RunContext):
         """Use this tool to list the user's Google Task lists."""
         logger.info("Listing Google Task lists")
-        return list_task_lists()
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return list_task_lists(creds)
 
     @function_tool
     async def list_google_tasks(self, context: RunContext, task_list_id: str):
         """Use this tool to list the tasks in a specific Google Task list."""
         logger.info(f"Listing tasks for task list {task_list_id}")
-        return list_tasks(task_list_id)
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return list_tasks(creds, task_list_id)
 
     @function_tool
     async def create_google_task(
@@ -144,7 +181,10 @@ Do not hesitate to use the appropriate tool to determine the curren date.
     ):
         """Use this tool to create a new task in a specific Google Task list."""
         logger.info(f"Creating task '{title}' in task list {task_list_id}")
-        return create_task(task_list_id, title, notes)
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return create_task(creds, task_list_id, title, notes)
 
     @function_tool
     async def update_google_task(
@@ -152,13 +192,19 @@ Do not hesitate to use the appropriate tool to determine the curren date.
     ):
         """Use this tool to update a task in a specific Google Task list."""
         logger.info(f"Updating task {task_id} in task list {task_list_id}")
-        return update_task(task_list_id, task_id, title, notes)
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return update_task(creds, task_list_id, task_id, title, notes)
 
     @function_tool
     async def delete_google_task(self, context: RunContext, task_list_id: str, task_id: str):
         """Use this tool to delete a task in a specific Google Task list."""
         logger.info(f"Deleting task {task_id} from task list {task_list_id}")
-        return delete_task(task_list_id, task_id)
+        creds = self._get_google_creds(context)
+        if not creds:
+            return "Please authenticate with Google first."
+        return delete_task(creds, task_list_id, task_id)
 
 #
 

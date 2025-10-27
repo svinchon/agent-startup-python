@@ -1,15 +1,9 @@
-
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from google.oauth2.credentials import Credentials
 
-from google_auth import authenticate_google
-
-def list_task_lists():
+def list_task_lists(creds: Credentials):
     """Lists the user's task lists."""
-    creds = authenticate_google()
-    if not creds:
-        return "Authentication failed. Please ensure credentials.json is set up correctly."
-
     try:
         service = build("tasks", "v1", credentials=creds)
 
@@ -29,12 +23,8 @@ def list_task_lists():
     except Exception as e:
         return f"An unexpected error occurred: {e}"
 
-def list_tasks(task_list_id: str):
+def list_tasks(creds: Credentials, task_list_id: str):
     """Lists the tasks in a specific task list."""
-    creds = authenticate_google()
-    if not creds:
-        return "Authentication failed. Please ensure credentials.json is set up correctly."
-
     try:
         service = build("tasks", "v1", credentials=creds)
 
@@ -54,12 +44,8 @@ def list_tasks(task_list_id: str):
     except Exception as e:
         return f"An unexpected error occurred: {e}"
 
-def create_task(task_list_id: str, title: str, notes: str = None):
+def create_task(creds: Credentials, task_list_id: str, title: str, notes: str = None):
     """Creates a new task."""
-    creds = authenticate_google()
-    if not creds:
-        return "Authentication failed. Please ensure credentials.json is set up correctly."
-
     try:
         service = build("tasks", "v1", credentials=creds)
 
@@ -76,12 +62,8 @@ def create_task(task_list_id: str, title: str, notes: str = None):
     except Exception as e:
         return f"An unexpected error occurred: {e}"
 
-def update_task(task_list_id: str, task_id: str, title: str, notes: str = None):
+def update_task(creds: Credentials, task_list_id: str, task_id: str, title: str, notes: str = None):
     """Updates a task."""
-    creds = authenticate_google()
-    if not creds:
-        return "Authentication failed. Please ensure credentials.json is set up correctly."
-
     try:
         service = build("tasks", "v1", credentials=creds)
 
@@ -97,12 +79,9 @@ def update_task(task_list_id: str, task_id: str, title: str, notes: str = None):
     except Exception as e:
         return f"An unexpected error occurred: {e}"
 
-def delete_task(task_list_id: str, task_id: str):
-    """Deletes a task."""
-    creds = authenticate_google()
-    if not creds:
-        return "Authentication failed. Please ensure credentials.json is set up correctly."
 
+def delete_task(creds: Credentials, task_list_id: str, task_id: str):
+    """Deletes a task."""
     try:
         service = build("tasks", "v1", credentials=creds)
 
