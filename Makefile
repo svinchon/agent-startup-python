@@ -6,3 +6,9 @@ run-agent-dev:
 
 get-files:
 	uv run python src/agent.py download-files
+
+branch-main:
+	git switch main
+
+branch-wip:
+	git switch wip

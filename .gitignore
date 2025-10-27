@@ -12,3 +12,6 @@ KMS
 .ruff_cache
 
 token.*
+credentials.json
+
+
