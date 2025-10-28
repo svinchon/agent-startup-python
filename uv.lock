@@ -9,7 +9,7 @@ resolution-markers = [
 ]
 
 [[package]]
-name = "agent-starter-python"
+name = "my-jarvis-backend"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
