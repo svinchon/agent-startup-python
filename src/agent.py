@@ -1,6 +1,7 @@
 
 import logging
 import datetime as dt
+import os
 
 from dotenv import load_dotenv
 from livekit.agents import (
@@ -18,7 +19,7 @@ from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from livekit.agents import function_tool, RunContext
 from google_calendar_tool import add_event, get_upcoming_events
-from google_mail_tool import send_email
+from google_mail_tool import send_email, list_unread_emails
 from google_tasks_tool import (
     list_task_lists,
     list_tasks,
@@ -33,13 +34,15 @@ logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
+language = os.getenv("PREFERRED_LANGUAGE")
+
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""
+            instructions=f"""
 You are a helpful voice AI assistant.
 You are called Zephyr.
-Speak in French by default
+Speak in {language} by default
 The user is interacting with you via voice,
 even if you perceive the conversation as text.
 You eagerly assist users with their questions by providing
@@ -124,6 +127,16 @@ Do not hesitate to use the appropriate tool to determine the curren date.
         logger.info(f"Sending email to {to} with subject {subject}")
         return send_email(to, subject, message)
 
+    @function_tool
+    async def list_google_unread_emails(self, context: RunContext, count: int = 5):
+        """Use this tool to list the last N unread emails.
+
+        Args:
+            count: The number of unread emails to retrieve (default is 5).
+        """
+        logger.info(f"Listing last {count} unread emails")
+        return list_unread_emails(count)
+
 # GOOGLE TASKS #################################################################
 
     @function_tool
@@ -178,9 +191,9 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
-        # stt="assemblyai/universal-streaming:en",
+        stt="assemblyai/universal-streaming:en",
         # stt="cartesia/ink-whisper:fr",
-        stt="deepgram/nova-3:fr",
+        # stt="deepgram/nova-3:fr",
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
         llm="openai/gpt-4.1-mini",
