@@ -30,6 +30,15 @@ from google_tasks_tool import (
 from datetime_tool import get_current_datetime
 # from livekit.plugins import hedra
 
+# import uvicorn
+# from fastapi import FastAPI
+
+# app = FastAPI()
+
+# @app.get("/healthz")
+# def healthz():
+#     return {"status": "ok"}
+
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
@@ -38,6 +47,7 @@ language = os.getenv("PREFERRED_LANGUAGE")
 
 class Assistant(Agent):
     def __init__(self) -> None:
+        logger.info("Initializing Assistant agent")
         super().__init__(
             instructions=f"""
 You are a helpful voice AI assistant.
@@ -181,7 +191,17 @@ def prewarm(proc: JobProcess):
 #
 
 async def entrypoint(ctx: JobContext):
-    # Logging setup
+
+    logger = logging.getLogger("agent")
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    logger.info("--> entrypoint called")
+
+    print("--> entrypoint called")
+
     # Add any other context you want in all log entries here
     ctx.log_context_fields = {
         "room": ctx.room.name,
@@ -256,6 +276,31 @@ async def entrypoint(ctx: JobContext):
     # Join the room and connect to the user
     await ctx.connect()
 
+    # uvicorn.run(app, host="0.0.0.0", port=8080)
+
+#
 
 if __name__ == "__main__":
+
+    import os
+    # import threading
+    import http.server
+    import socketserver
+
+    # from livekit import agents
+
+    # Dummy HTTP server for Cloud Run health check
+    def start_dummy_server():
+        print("--> start_dummy_server called")
+        port = int(os.environ.get("PORT", 8080))
+        handler = http.server.SimpleHTTPRequestHandler
+        with socketserver.TCPServer(("", port), handler) as httpd:
+            print(f"[HealthCheck] Listening on port {port}")
+            httpd.serve_forever()
+
+    # Run the dummy server in a background thread
+
+    # threading.Thread(target=start_dummy_server, daemon=True).start()
+
+    # run agent
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))

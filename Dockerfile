@@ -63,6 +63,9 @@ USER appuser
 # dependencies at runtime, which improves startup time and reliability
 RUN uv run src/agent.py download-files
 
+# expose healthcheck port
+# EXPOSE 8081
+
 # Run the application using UV
 # UV will activate the virtual environment and run the agent.
 # The "start" command tells the worker to connect to LiveKit and begin waiting for jobs.
